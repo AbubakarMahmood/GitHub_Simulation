@@ -4,6 +4,7 @@
 #include "Repository.h"
 #include "SocialNetwork.h"
 #include "SearchedUser.h"
+#include "SelectedRepo.h"
 #include "exception.h"
 #include <msclr/marshal_cppstd.h>
 #include <fstream>
@@ -306,7 +307,7 @@ namespace GithubSimulation {
     }
     private: System::Void DeleteButton_Click(System::Object^ sender, DataGridViewCellEventArgs^ e) {
         
-        if (e->ColumnIndex == 3) {
+		if (e->ColumnIndex == 3 && UserReposGridView->Rows->Count > 0) {
             // Get the name of the repository to be deleted
             string repoName = msclr::interop::marshal_as<std::string>(UserReposGridView->Rows[e->RowIndex]->Cells[0]->Value->ToString());
 
@@ -318,9 +319,9 @@ namespace GithubSimulation {
 
 
             // Update the file containing the user's repositories
-			ofstream file(currentUser->username + "'sRepos.csv", ios::trunc);
+			ofstream file(currentUser->username + "'sRepos.csv");
 			if (file.is_open()) {
-				for (int i = 0; i < UserReposGridView->Rows->Count; i++) {
+				for (int i = 0; i < UserReposGridView->Rows->Count - 1; i++) {
 					file << msclr::interop::marshal_as<std::string>(UserReposGridView->Rows[i]->Cells[0]->Value->ToString()) << " " << msclr::interop::marshal_as<std::string>(UserReposGridView->Rows[i]->Cells[1]->Value->ToString()) << " " << msclr::interop::marshal_as<std::string>(UserReposGridView->Rows[i]->Cells[2]->Value->ToString()) << endl;
 				}
 				file.close();
@@ -328,12 +329,27 @@ namespace GithubSimulation {
 			else {
 				cerr << "Error: Unable to open file " << currentUser->username << "'sRepos.csv" << endl;
 			}
+
+			// Delete the file containing the repository's files
+			string repoFileName = repoName + "Files.csv";
+			if (remove(repoFileName.c_str()) != 0) {
+				cerr << "Error: Unable to delete file " << repoFileName << endl;
+			}
         }
     }
 
     private: System::Void UserReposGridView_CellContentClick(System::Object^ sender, System::Windows::Forms::DataGridViewCellEventArgs^ e) {
+        //open SelectedRepo form with the selected repository name
+
+        //SelectedRepo^ selectedRepoForm = gcnew SelectedRepo(userManager, msclr::interop::marshal_as<std::string>(UserReposGridView->Rows[e->RowIndex]->Cells[0]->Value->ToString()));
+        //try {
+        //    selectedRepoForm->ShowDialog();
+        //}
+        //catch (Exception^ ex) {
+        //    // Handle any exceptions that might occur
+        //    MessageBox::Show(ex->Message, "Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
+        //}
     }
-   
 
     private: System::Void Logoutbutton_Click(System::Object^ sender, System::EventArgs^ e) {
         userManager->logout();
@@ -342,18 +358,15 @@ namespace GithubSimulation {
     }
     private: System::Void RepoAddbutton_Click(System::Object^ sender, System::EventArgs^ e)
     {
-        NewRepotextBox->Text = "name your new repo";
- 
         string repoName = msclr::interop::marshal_as<std::string>(NewRepotextBox->Text);
         string visibility = RepoVisiblityradioButton->Checked ? "Private" : "Public";
-
         User* currentUser = userManager->getCurrentUser();
         
         Repository* newRepo = new Repository(repoName, 0, visibility == "Public" ? true : false);
          currentUser->repos.insert(*newRepo);
         UserReposGridView->Rows->Add(gcnew String(repoName.c_str()), "0", gcnew String(visibility.c_str()));
 		RepoVisiblityradioButton->Checked = false;
-
+        NewRepotextBox->Text = "name your new repo";
 		// Update the file containing the user's repositories
 		ofstream file(currentUser->username + "'sRepos.csv", ios::app);
         if (file.is_open()) {
@@ -362,6 +375,15 @@ namespace GithubSimulation {
 		}
         else {
             cerr << "Error: Unable to open file " << currentUser->username << "'sRepos.csv" << endl;
+        }
+
+        //create Repo file
+		ofstream repoFile(repoName + "Files.csv");
+        if (repoFile.is_open()) {
+			repoFile.close();
+		}
+        else {
+            cerr << "Error: Unable to open file " << repoName << ".csv" << endl;
         }
     }
 
@@ -491,34 +513,62 @@ namespace GithubSimulation {
 		SearchedUser^ searchedUserForm = gcnew SearchedUser(userManager, msclr::interop::marshal_as<std::string>(SearchComboBox->Text));
 		
         // Subscribe to events from the searchedUserForm
-		searchedUserForm->UserFollowed += gcnew SearchedUser::UserActionEventHandler(this, &Home::OnUserFollowed);
-		searchedUserForm->UserUnfollowed += gcnew SearchedUser::UserActionEventHandler(this, &Home::OnUserUnfollowed);
+		//searchedUserForm->UserFollowed += gcnew SearchedUser::UserActionEventHandler(this, &Home::OnUserFollowed);
+		//searchedUserForm->UserUnfollowed += gcnew SearchedUser::UserActionEventHandler(this, &Home::OnUserUnfollowed);
         // Subscribe to similar events for forking repositories
-		searchedUserForm->RepoForked += gcnew SearchedUser::RepoActionEventHandler(this, &Home::OnRepoForked);
-        
-        searchedUserForm->ShowDialog();
+		//searchedUserForm->RepoForked += gcnew SearchedUser::RepoActionEventHandler(this, &Home::OnRepoForked);
+       try {
+            searchedUserForm->ShowDialog();
+        }
+        catch (Exception^ ex) {
+            // Handle any exceptions that might occur
+            MessageBox::Show(ex->Message, "Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
+        }
     }
-    
+
     private: System::Void OnUserFollowed(System::String^ username, bool isFollowed) {
-        // Add the user to the DataGridView
-        FollowsGridView->Rows->Add(username);
-        FollowsGridView->Rows[FollowsGridView->Rows->Count - 1]->Cells[1]->Value = "Unfollow";
+        try {
+            // Add the user to the DataGridView
+            FollowsGridView->Rows->Add(username);
+            FollowsGridView->Rows[FollowsGridView->Rows->Count - 1]->Cells[1]->Value = "Unfollow";
+            // Refresh the DataGridView to update the UI
+            FollowsGridView->Refresh();
+        }
+        catch (Exception^ ex) {
+            // Handle any exceptions that might occur
+            MessageBox::Show(ex->Message, "Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
+        }
     }
 
     private: System::Void OnUserUnfollowed(System::String^ username, bool isFollowed) {
-        // Remove the user from the DataGridView
-        for (int i = 0; i < FollowsGridView->Rows->Count; i++) {
-            if (FollowsGridView->Rows[i]->Cells[0]->Value->ToString() == username) {
-                FollowsGridView->Rows->RemoveAt(i);
-                break;
+        try {
+            // Remove the user from the DataGridView
+            for (int i = 0; i < FollowsGridView->Rows->Count; i++) {
+                if (FollowsGridView->Rows[i]->Cells[0]->Value->ToString() == username) {
+                    FollowsGridView->Rows->RemoveAt(i);
+                    break;
+                }
             }
+            // Refresh the DataGridView to update the UI
+            FollowsGridView->Refresh();
+        }
+        catch (Exception^ ex) {
+            // Handle any exceptions that might occur
+            MessageBox::Show(ex->Message, "Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
         }
     }
 
     private: System::Void OnRepoForked(System::String^ repoName, int forkCount) {
-        // Add the repository to the DataGridView
-        UserReposGridView->Rows->Add(repoName, forkCount, "Public");
+		try {
+			// Add the repository to the DataGridView
+			UserReposGridView->Rows->Add(repoName, forkCount, "Public");
+			// Refresh the DataGridView to update the UI
+			UserReposGridView->Refresh();
+		}
+        catch (Exception^ ex) {
+            // Handle any exceptions that might occur
+            MessageBox::Show(ex->Message, "Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
+        }
     }
-
 };
 }

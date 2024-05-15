@@ -114,7 +114,7 @@ namespace GithubSimulation {
                 this->SearchedUserRepoNameColumn,
                     this->SearchedUserRepoForkCountColumn, this->SearchedUserRepoForkDescionColumn
             });
-            this->searchedUserReposdataGridView->Location = System::Drawing::Point(86, 106);
+            this->searchedUserReposdataGridView->Location = System::Drawing::Point(86, 112);
             this->searchedUserReposdataGridView->Name = L"searchedUserReposdataGridView";
             this->searchedUserReposdataGridView->RowHeadersWidth = 51;
             this->searchedUserReposdataGridView->RowTemplate->Height = 24;
@@ -145,7 +145,6 @@ namespace GithubSimulation {
             this->SearchedUserRepoForkDescionColumn->Name = L"SearchedUserRepoForkDescionColumn";
             this->SearchedUserRepoForkDescionColumn->ReadOnly = true;
             this->SearchedUserRepoForkDescionColumn->Width = 125;
-
             // 
             // searchUserFollowbutton
             // 
@@ -159,9 +158,7 @@ namespace GithubSimulation {
             this->searchUserFollowbutton->Click += gcnew System::EventHandler(this, &SearchedUser::searchUserFollowbutton_Click);
             // 
             // searchedUserUnfollowbutton
-            //
-
-
+            // 
             this->searchedUserUnfollowbutton->Location = System::Drawing::Point(436, 41);
             this->searchedUserUnfollowbutton->Name = L"searchedUserUnfollowbutton";
             this->searchedUserUnfollowbutton->Size = System::Drawing::Size(75, 23);

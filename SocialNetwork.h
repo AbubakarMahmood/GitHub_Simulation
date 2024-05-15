@@ -3,8 +3,6 @@
 #define SOCIALNETWORK_H
 
 #include <string>
-#include <vector>
-#include <algorithm>
 #include <fstream>
 #include "exception.h"
 
@@ -92,24 +90,7 @@ struct SocialNetwork {
         }
     }
 
-	// Method to search for users based on a query excluding the current user
-    std::vector<std::string> searchUsers(const std::string& query, const std::string& currentUser) {
-        std::vector<std::string> searchResults;
 
-        // Iterate through all users in the network
-        for (int i = 0; i < numUsers && users[i] != currentUser; ++i) {
-            // Check if the user is not the current user and matches the search query
-            for (int j = 0; j < query.length(); j++) {
-                if (tolower(users[i][j]) != tolower(query[j])) {
-                    break;
-                }
-                if (j == query.length() - 1) {
-                    searchResults.push_back(users[i]);
-                }
-            }
-        }
-        return searchResults;
-    }
 
 	//isFollowing
 	bool isFollowing(int followerIndex, int followedIndex ) {

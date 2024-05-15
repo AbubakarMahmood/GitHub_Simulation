@@ -5,15 +5,17 @@
 #include <string>
 #include <fstream>
 #include "exception.h"
+#include "File.h"
 using namespace std;
 struct Repository
 {
-    string name;
+	string name;
 	int forkCount;
 	bool isPublic; 
     Repository* left = nullptr;
-    Repository* right = nullptr; 
-    Repository(const string& _name, int _forkCount, bool _isPublic) : name(_name), forkCount(_forkCount), isPublic(_isPublic) {}
+    Repository* right = nullptr;
+	File files;
+    Repository(const string& _name, int _forkCount, bool _isPublic) : name(_name), forkCount(_forkCount), isPublic(_isPublic), files() {}
 };
 
 class RepositoryManager
@@ -45,36 +47,36 @@ public:
         Repository* newNode = new Repository(newRepo.name, newRepo.forkCount, newRepo.isPublic);
 
         if (root == nullptr)
-        {
+        {//Empty Tree
             root = newNode;
             current = root;
         }
         else
-        {
+        {//Tree Not Empty
             Repository* temp = root;
             while (temp != nullptr)
             {
                 if (newNode->name < temp->name)
-                {
+                {//Left traversal
                     if (temp->left == nullptr)
-                    {
+                    {//Empty Left side
                         temp->left = newNode;
                         break;
                     }
                     else
-                    {
+                    {//Continue Traversal
                         temp = temp->left;
                     }
                 }
 				else if (newNode->name > temp->name)
-                {
+                {//Right Traversal
                     if (temp->right == nullptr)
-                    {
+                    {//Rightside Empty
                         temp->right = newNode;
                         break;
                     }
                     else
-                    {
+                    {//Continue Traversal
                         temp = temp->right;
                     }
                 }
@@ -168,6 +170,27 @@ public:
 				break;
 			}
 		}
+	}
+
+	Repository* search(const string& repoName)
+	{
+		Repository* temp = root;
+		while (temp != nullptr)
+		{
+			if (repoName < temp->name)
+			{
+				temp = temp->left;
+			}
+			else if (repoName > temp->name)
+			{
+				temp = temp->right;
+			}
+			else
+			{
+				return temp;
+			}
+		}
+		return nullptr;
 	}
 
 
