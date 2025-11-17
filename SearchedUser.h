@@ -82,6 +82,7 @@ namespace GithubSimulation {
             {
                 delete components;
             }
+            delete searchedUsername;
         }
 
     private:
@@ -226,7 +227,7 @@ namespace GithubSimulation {
             string visibility = "";
             while (file >> repoName >> forkCount >> visibility) {
                 //Add the repository and its fork count to the grid if repoName is not empty and if its public
-                if (repoName != "" && visibility == "public") {
+                if (repoName != "" && visibility == "Public") {
                     searchedUserReposdataGridView->Rows->Add(gcnew String(repoName.c_str()), forkCount, gcnew String(visibility.c_str()));
                     //add the text Fork to the decision column
                     searchedUserReposdataGridView->Rows[searchedUserReposdataGridView->Rows->Count - 1]->Cells[2]->Value = "Fork";

@@ -2,6 +2,7 @@
 
 #include "User.h"
 #include "Repository.h"
+#include "Validation.h"
 #include "exception.h"
 #include <string>
 #include "File.h"
@@ -74,6 +75,7 @@ namespace GithubSimulation {
 			{
 				delete components;
 			}
+			delete selectedRepoName;
 		}
 
 	private:
@@ -125,7 +127,7 @@ namespace GithubSimulation {
 			this->newFileNametextBox->Size = System::Drawing::Size(193, 22);
 			this->newFileNametextBox->TabIndex = 1;
 			this->newFileNametextBox->TabStop = false;
-			this->newFileNametextBox->Text = L"name you new file ";
+			this->newFileNametextBox->Text = L"Name your new file";
 			// 
 			// fileAddbutton
 			// 
@@ -185,23 +187,58 @@ namespace GithubSimulation {
 	private: System::Void fileAddbutton_Click(System::Object^ sender, System::EventArgs^ e) {
 		std::string newFileName = msclr::interop::marshal_as<std::string>(newFileNametextBox->Text);
 		std::string repoName = *selectedRepoName;
+
+		// Validate file name
+		std::string errorMessage;
+		if (!Validation::isValidFileName(newFileName, errorMessage)) {
+			MessageBox::Show(gcnew String(errorMessage.c_str()), "Invalid File Name", MessageBoxButtons::OK, MessageBoxIcon::Warning);
+			return;
+		}
+
+		// Check if file already exists
+		Repository* repo = userManager->getCurrentUser()->repos.search(*selectedRepoName);
+		if (repo != nullptr) {
+			FileNode* existingFile = repo->files.search(newFileName);
+			if (existingFile != nullptr) {
+				MessageBox::Show("A file with this name already exists in this repository!\nPlease choose a different name.", "Duplicate File", MessageBoxButtons::OK, MessageBoxIcon::Warning);
+				return;
+			}
+		}
+
+		// Add file to repository file list
 		std::string repoFileName = repoName + "Files.csv";
 		std::ofstream file(repoFileName, std::ios::app);
+		if (!file.is_open()) {
+			MessageBox::Show("Error: Unable to save file to repository!", "File Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
+			return;
+		}
 		file << newFileName << std::endl;
 		file.close();
-		SelectedRepoFilesdataGridView->Rows->Add(gcnew String(newFileName.c_str()));
-		userManager->getCurrentUser()->repos.search(*selectedRepoName)->files.addFile(newFileName);
-		newFileNametextBox->Text = "name you new file ";
 
-		//create a new .csv file with the repoFileName
+		// Update UI and data structure
+		SelectedRepoFilesdataGridView->Rows->Add(gcnew String(newFileName.c_str()));
+		if (repo != nullptr) {
+			repo->files.addFile(newFileName);
+		}
+		newFileNametextBox->Text = "Name your new file";
+
+		// Create data file for the new file
 		std::string newFileDataFileName = repoName + newFileName + "Data.csv";
 		std::ofstream newFileDataFile(newFileDataFileName);
+		if (!newFileDataFile.is_open()) {
+			MessageBox::Show("Warning: File created but data file initialization failed!", "Warning", MessageBoxButtons::OK, MessageBoxIcon::Warning);
+		}
 		newFileDataFile.close();
 
-		//create a new .csv file with the repoFileName
+		// Create commits file for the new file
 		std::string newFileCommitFileName = repoName + newFileName + "Commits.csv";
 		std::ofstream newFileCommitFile(newFileCommitFileName);
+		if (!newFileCommitFile.is_open()) {
+			MessageBox::Show("Warning: File created but commits file initialization failed!", "Warning", MessageBoxButtons::OK, MessageBoxIcon::Warning);
+		}
 		newFileCommitFile.close();
+
+		MessageBox::Show("File created successfully!", "Success", MessageBoxButtons::OK, MessageBoxIcon::Information);
 	}
 };
 }

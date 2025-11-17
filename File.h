@@ -25,7 +25,12 @@ public:
 
     // Destructor
     ~File() {
-        // Implement if needed
+        FileNode* current = head;
+        while (current != nullptr) {
+            FileNode* next = current->next;
+            delete current;
+            current = next;
+        }
     }
 
     // Function to add a file to the list

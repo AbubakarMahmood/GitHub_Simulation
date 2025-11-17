@@ -5,6 +5,7 @@
 #include "SocialNetwork.h"
 #include "SearchedUser.h"
 #include "SelectedRepo.h"
+#include "Validation.h"
 #include "exception.h"
 #include <msclr/marshal_cppstd.h>
 #include <fstream>
@@ -341,14 +342,14 @@ namespace GithubSimulation {
     private: System::Void UserReposGridView_CellContentClick(System::Object^ sender, System::Windows::Forms::DataGridViewCellEventArgs^ e) {
         //open SelectedRepo form with the selected repository name
 
-        //SelectedRepo^ selectedRepoForm = gcnew SelectedRepo(userManager, msclr::interop::marshal_as<std::string>(UserReposGridView->Rows[e->RowIndex]->Cells[0]->Value->ToString()));
-        //try {
-        //    selectedRepoForm->ShowDialog();
-        //}
-        //catch (Exception^ ex) {
-        //    // Handle any exceptions that might occur
-        //    MessageBox::Show(ex->Message, "Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
-        //}
+        SelectedRepo^ selectedRepoForm = gcnew SelectedRepo(userManager, msclr::interop::marshal_as<std::string>(UserReposGridView->Rows[e->RowIndex]->Cells[0]->Value->ToString()));
+        try {
+            selectedRepoForm->ShowDialog();
+        }
+        catch (Exception^ ex) {
+            // Handle any exceptions that might occur
+            MessageBox::Show(ex->Message, "Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
+        }
     }
 
     private: System::Void Logoutbutton_Click(System::Object^ sender, System::EventArgs^ e) {
@@ -361,12 +362,28 @@ namespace GithubSimulation {
         string repoName = msclr::interop::marshal_as<std::string>(NewRepotextBox->Text);
         string visibility = RepoVisiblityradioButton->Checked ? "Private" : "Public";
         User* currentUser = userManager->getCurrentUser();
-        
+
+        // Validate repository name
+        std::string errorMessage;
+        if (!Validation::isValidRepositoryName(repoName, errorMessage)) {
+            MessageBox::Show(gcnew String(errorMessage.c_str()), "Invalid Repository Name", MessageBoxButtons::OK, MessageBoxIcon::Warning);
+            return;
+        }
+
+        // Check if repository already exists
+        Repository* existingRepo = currentUser->repos.search(repoName);
+        if (existingRepo != nullptr) {
+            MessageBox::Show("A repository with this name already exists!\nPlease choose a different name.", "Duplicate Repository", MessageBoxButtons::OK, MessageBoxIcon::Warning);
+            return;
+        }
+
+        // Create and insert new repository
         Repository* newRepo = new Repository(repoName, 0, visibility == "Public" ? true : false);
-         currentUser->repos.insert(*newRepo);
+        currentUser->repos.insert(*newRepo);
         UserReposGridView->Rows->Add(gcnew String(repoName.c_str()), "0", gcnew String(visibility.c_str()));
 		RepoVisiblityradioButton->Checked = false;
         NewRepotextBox->Text = "name your new repo";
+
 		// Update the file containing the user's repositories
 		ofstream file(currentUser->username + "'sRepos.csv", ios::app);
         if (file.is_open()) {
@@ -374,16 +391,20 @@ namespace GithubSimulation {
 			file.close();
 		}
         else {
+            MessageBox::Show("Error: Unable to save repository to file!", "File Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
             cerr << "Error: Unable to open file " << currentUser->username << "'sRepos.csv" << endl;
+            return;
         }
 
-        //create Repo file
+        // Create repository file
 		ofstream repoFile(repoName + "Files.csv");
         if (repoFile.is_open()) {
 			repoFile.close();
+            MessageBox::Show("Repository created successfully!", "Success", MessageBoxButtons::OK, MessageBoxIcon::Information);
 		}
         else {
-            cerr << "Error: Unable to open file " << repoName << ".csv" << endl;
+            MessageBox::Show("Warning: Repository created but file initialization failed!", "Warning", MessageBoxButtons::OK, MessageBoxIcon::Warning);
+            cerr << "Error: Unable to open file " << repoName << "Files.csv" << endl;
         }
     }
 
@@ -394,24 +415,36 @@ namespace GithubSimulation {
         // Fetch all repositories of the current user from file
         User* currentUser = userManager->getCurrentUser();
         string username = currentUser->username;
-        ifstream file(username + "'sRepos.csv");
-        if (file.is_open()) {
-            string repoName = "";
-            int forkCount = -1;
-            string visibility = "";
-            while (file >> repoName >> forkCount >> visibility) {
-				//Add the repository to the tree if repoName is not empty
-                if (repoName != "" && forkCount != -1 && visibility != "") {
-                    Repository* newRepo = new Repository(repoName, 0, visibility == "Public" ? true : false);
-                    // Add the repository to the DataGridView
-                    UserReposGridView->Rows->Add(gcnew String(repoName.c_str()), gcnew String(std::to_string(forkCount).c_str()), gcnew String(visibility.c_str()));
-                }
+        string filename = username + "'sRepos.csv";
+        ifstream file(filename);
+
+        if (!file.is_open()) {
+            cerr << "Warning: Unable to open file " << filename << ". Creating new repository file." << endl;
+            // Create the file if it doesn't exist
+            ofstream createFile(filename);
+            if (createFile.is_open()) {
+                createFile.close();
             }
-            file.close();
+            return;
         }
-        else {
-            cerr << "Error: Unable to open file " << username << "'sRepos.txt" << endl;
+
+        string repoName = "";
+        int forkCount = -1;
+        string visibility = "";
+        while (file >> repoName >> forkCount >> visibility) {
+            // Add the repository to the tree if repoName is not empty
+            if (repoName != "" && forkCount != -1 && visibility != "") {
+                Repository* newRepo = new Repository(repoName, 0, visibility == "Public" ? true : false);
+                // Add the repository to the DataGridView
+                UserReposGridView->Rows->Add(gcnew String(repoName.c_str()), gcnew String(std::to_string(forkCount).c_str()), gcnew String(visibility.c_str()));
+            }
         }
+
+        if (file.fail() && !file.eof()) {
+            MessageBox::Show("Warning: Error reading repository data.\nSome repositories may not be displayed.", "Data Load Warning", MessageBoxButtons::OK, MessageBoxIcon::Warning);
+        }
+
+        file.close();
     }
 
     private:void LoadFollowers()
@@ -419,19 +452,30 @@ namespace GithubSimulation {
         // Fetch all followers of the current user from FollowRelationships.csv file
         string username = userManager->getCurrentUser()->username;
         ifstream file("FollowRelationships.csv");
-        if (file.is_open()) {
-            string follower, followed;
-            while (file >> follower >> followed) {
-                if (followed == username) {
-                    // Add the follower to the DataGridView
-                    FollowersGridView->Rows->Add(gcnew String(follower.c_str()));
-                }
+
+        if (!file.is_open()) {
+            cerr << "Warning: Unable to open file FollowRelationships.csv. Creating new file." << endl;
+            // Create the file if it doesn't exist
+            ofstream createFile("FollowRelationships.csv");
+            if (createFile.is_open()) {
+                createFile.close();
             }
-            file.close();
+            return;
         }
-        else {
-            cerr << "Error: Unable to open file FollowRelationships.csv" << endl;
+
+        string follower, followed;
+        while (file >> follower >> followed) {
+            if (followed == username) {
+                // Add the follower to the DataGridView
+                FollowersGridView->Rows->Add(gcnew String(follower.c_str()));
+            }
         }
+
+        if (file.fail() && !file.eof()) {
+            cerr << "Warning: Error reading followers data." << endl;
+        }
+
+        file.close();
     }
 
     private:void LoadFollows()
@@ -440,20 +484,31 @@ namespace GithubSimulation {
         User* currentUser = userManager->getCurrentUser();
         string username = currentUser->username;
         ifstream file("FollowRelationships.csv");
-        if (file.is_open()) {
-            string follower, followed;
-            while (file >> follower >> followed) {
-                if (follower == username) {
-                    // Add the user followed to the DataGridView
-                    FollowsGridView->Rows->Add(gcnew String(followed.c_str()));
-					FollowsGridView->Rows[FollowsGridView->Rows->Count - 1]->Cells[1]->Value = "Unfollow";
-                }
+
+        if (!file.is_open()) {
+            cerr << "Warning: Unable to open file FollowRelationships.csv. Creating new file." << endl;
+            // Create the file if it doesn't exist
+            ofstream createFile("FollowRelationships.csv");
+            if (createFile.is_open()) {
+                createFile.close();
             }
-            file.close();
+            return;
         }
-        else {
-            cerr << "Error: Unable to open file FollowRelationships.csv" << endl;
+
+        string follower, followed;
+        while (file >> follower >> followed) {
+            if (follower == username) {
+                // Add the user followed to the DataGridView
+                FollowsGridView->Rows->Add(gcnew String(followed.c_str()));
+				FollowsGridView->Rows[FollowsGridView->Rows->Count - 1]->Cells[1]->Value = "Unfollow";
+            }
         }
+
+        if (file.fail() && !file.eof()) {
+            cerr << "Warning: Error reading following data." << endl;
+        }
+
+        file.close();
     }
 
 
