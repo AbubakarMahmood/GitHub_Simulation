@@ -4,9 +4,17 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <sstream>
+#include <iomanip>
 #include "Repository.h"
 #include "SocialNetwork.h"
 #include "exception.h"
+
+// For SHA-256 hashing in C++/CLI
+#using <System.dll>
+using namespace System;
+using namespace System::Security::Cryptography;
+using namespace System::Text;
 
 // Define a struct for User
 struct User {
@@ -163,33 +171,41 @@ public:
     // Method to load users from file and initialize social network
     void loadUsersFromFile(const std::string& filename) {
         std::ifstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "Error: Unable to open file " << filename << std::endl;
+            std::cerr << "Creating new users file..." << std::endl;
+            // Create the file if it doesn't exist
+            std::ofstream createFile(filename);
+            if (createFile.is_open()) {
+                createFile.close();
+                std::cout << "New users file created successfully." << std::endl;
+            }
+            network = new SocialNetwork(0);
+            return;
+        }
+
+        std::string username, password;
+        while (file >> username >> password) { // Use space as separator in .csv file
+            User newUser(username, password);
+            users.insert(newUser);
+        }
+        file.close();
+
+        // Initialize social network with the final size of the hashtable
+        network = new SocialNetwork(users.getSize());
+
+        // Populate the users array in the social network
+        file.open(filename);
         if (file.is_open()) {
-            std::string username, password;
-            while (file >> username >> password) { // Use space as separator in .csv file
-                User newUser(username, password);
-                users.insert(newUser);
+            int index = 0;
+            while (file >> username >> password) {
+                network->addUser(username, index);
+                ++index;
             }
             file.close();
-
-            // Initialize social network with the final size of the hashtable
-            network = new SocialNetwork(users.getSize());
-
-            // Populate the users array in the social network
-            file.open(filename); // Go to the beginning of the file
-            if (file.is_open()) {
-                int index = 0;
-                while (file >> username >> password) {
-                    network->addUser(username, index);
-                    ++index;
-                }
-                file.close();
-            }
-            else {
-                std::cerr << "Error: Unable to open file " << filename << std::endl;
-            }
         }
         else {
-            std::cerr << "Error: Unable to open file " << filename << std::endl;
+            std::cerr << "Error: Unable to reopen file " << filename << " for network initialization" << std::endl;
         }
     }
 
@@ -230,13 +246,34 @@ public:
         currentUser = nullptr; // Set current user to null, indicating no user is logged in
     }
 
-    // Method to hash a password
+    // Method to hash a password using SHA-256
     std::string hashPassword(const std::string& password) {
-        unsigned int hash = 0;
-        for (char ch : password) {
-            hash = hash * 31 + ch; // Basic hash function: hash * prime + char
+        // Convert std::string to managed String^
+        String^ managedPassword = gcnew String(password.c_str());
+
+        // Create SHA256 instance
+        SHA256^ sha256 = SHA256::Create();
+
+        // Convert string to bytes
+        array<Byte>^ passwordBytes = Encoding::UTF8->GetBytes(managedPassword);
+
+        // Compute hash
+        array<Byte>^ hashBytes = sha256->ComputeHash(passwordBytes);
+
+        // Convert hash bytes to hex string
+        StringBuilder^ sb = gcnew StringBuilder();
+        for (int i = 0; i < hashBytes->Length; i++) {
+            sb->Append(hashBytes[i].ToString("x2"));
         }
-        return std::to_string(hash); // Convert hash to string
+
+        // Convert managed String^ back to std::string
+        String^ hashString = sb->ToString();
+        std::string result;
+        for (int i = 0; i < hashString->Length; i++) {
+            result += (char)hashString[i];
+        }
+
+        return result;
     }
 
     // Method to register a new user

@@ -3,6 +3,7 @@
 #include "User.h"
 #include "Repository.h"
 #include "Commit.h"
+#include "Validation.h"
 #include "exception.h"
 #include <string>
 #include <msclr/marshal_cppstd.h>
@@ -186,25 +187,65 @@ namespace GithubSimulation {
 #pragma endregion
     private: System::Void commitAddbutton_Click(System::Object^ sender, System::EventArgs^ e) {
 		std::string commit = msclr::interop::marshal_as<std::string>(newCommittextBox->Text);
+
+		// Validate commit message
+		std::string errorMessage;
+		if (!Validation::isValidCommitMessage(commit, errorMessage)) {
+			MessageBox::Show(gcnew String(errorMessage.c_str()), "Invalid Commit Message", MessageBoxButtons::OK, MessageBoxIcon::Warning);
+			return;
+		}
+
+		// Save commit to file
 		std::string commitFileName = *selectedRepoName + *selectedFileName + "Commits.csv";
 		std::ofstream commitFile(commitFileName, std::ios::app);
+		if (!commitFile.is_open()) {
+			MessageBox::Show("Error: Unable to save commit to file!", "File Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
+			return;
+		}
 		commitFile << commit << std::endl;
 		commitFile.close();
-		//add the commit to current users selected repos commits
-        
-		userManager->getCurrentUser()->repos.search(*selectedRepoName)->files.search(*selectedFileName)->commits.addCommit(commit);
-        
+
+		// Add the commit to data structure
+		Repository* repo = userManager->getCurrentUser()->repos.search(*selectedRepoName);
+		if (repo != nullptr) {
+			FileNode* fileNode = repo->files.search(*selectedFileName);
+			if (fileNode != nullptr) {
+				fileNode->commits.addCommit(commit);
+			}
+		}
+
+		// Update UI
         commitsdataGridView->Rows->Add(newCommittextBox->Text);
+		newCommittextBox->Text = "Enter your new commit";
+		MessageBox::Show("Commit added successfully!", "Success", MessageBoxButtons::OK, MessageBoxIcon::Information);
     }
     private: System::Void fileDataSavebutton_Click(System::Object^ sender, System::EventArgs^ e) {
 		std::string selectedFileNameStr = *selectedRepoName + *selectedFileName + "Data.csv";
-		//open the file in truncate mode to clear the file
+
+		// Open the file in truncate mode to clear and rewrite the file
 		std::ofstream datafile(selectedFileNameStr, std::ios::trunc);
+		if (!datafile.is_open()) {
+			MessageBox::Show("Error: Unable to save file data!\nPlease check file permissions.", "File Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
+			return;
+		}
+
+		// Write the content to the file
         datafile << msclr::interop::marshal_as<std::string>(fileDatarichTextBox->Text);
+
+		// Check for write errors
+		if (datafile.fail()) {
+			MessageBox::Show("Error: Failed to write data to file!", "Write Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
+			datafile.close();
+			return;
+		}
+
 		datafile.close();
-		//clear the rich text box
+
+		// Clear and reload the rich text box
 		fileDatarichTextBox->Text = "";
         LoadSelectedFileData();
+
+		MessageBox::Show("File data saved successfully!", "Success", MessageBoxButtons::OK, MessageBoxIcon::Information);
     }
 };
 }

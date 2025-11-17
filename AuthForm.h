@@ -1,6 +1,7 @@
 #pragma once
 #include "User.h"
 #include "Home.h"
+#include "Validation.h"
 #include "exception.h"
 #include <msclr/marshal_cppstd.h>
 
@@ -265,12 +266,31 @@ namespace GithubSimulation {
 		std::string usernameStr = msclr::interop::marshal_as<std::string>(username);
 		std::string passwordStr = msclr::interop::marshal_as<std::string>(password);
 
-		if (!userManager->usernameExists(usernameStr)) {
-			userManager->registerUser(usernameStr, passwordStr);
-			MessageBox::Show("User registered successfully!");
+		// Validate username
+		std::string errorMessage;
+		if (!Validation::isValidUsername(usernameStr, errorMessage)) {
+			MessageBox::Show(gcnew String(errorMessage.c_str()), "Invalid Username", MessageBoxButtons::OK, MessageBoxIcon::Warning);
+			return;
+		}
+
+		// Validate password
+		if (!Validation::isValidPassword(passwordStr, errorMessage)) {
+			MessageBox::Show(gcnew String(errorMessage.c_str()), "Invalid Password", MessageBoxButtons::OK, MessageBoxIcon::Warning);
+			return;
+		}
+
+		// Check if username already exists
+		if (userManager->usernameExists(usernameStr)) {
+			MessageBox::Show("Username already exists! Please choose a different username.", "Registration Failed", MessageBoxButtons::OK, MessageBoxIcon::Error);
+			return;
+		}
+
+		// Register the user
+		if (userManager->registerUser(usernameStr, passwordStr)) {
+			MessageBox::Show("User registered successfully! You can now login.", "Success", MessageBoxButtons::OK, MessageBoxIcon::Information);
 		}
 		else {
-			MessageBox::Show("Username already exists!");
+			MessageBox::Show("Registration failed! Please try again.", "Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
 		}
 	}
 	private: System::Void AuthForm_Load(System::Object^ sender, System::EventArgs^ e) {
