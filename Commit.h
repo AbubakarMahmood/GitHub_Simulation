@@ -26,7 +26,12 @@ public:
 
     // Destructor
     ~CommitList() {
-        // Implement if needed
+        Commit* current = head;
+        while (current != nullptr) {
+            Commit* next = current->next;
+            delete current;
+            current = next;
+        }
     }
 
     // Function to add a commit to the list

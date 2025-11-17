@@ -341,14 +341,14 @@ namespace GithubSimulation {
     private: System::Void UserReposGridView_CellContentClick(System::Object^ sender, System::Windows::Forms::DataGridViewCellEventArgs^ e) {
         //open SelectedRepo form with the selected repository name
 
-        //SelectedRepo^ selectedRepoForm = gcnew SelectedRepo(userManager, msclr::interop::marshal_as<std::string>(UserReposGridView->Rows[e->RowIndex]->Cells[0]->Value->ToString()));
-        //try {
-        //    selectedRepoForm->ShowDialog();
-        //}
-        //catch (Exception^ ex) {
-        //    // Handle any exceptions that might occur
-        //    MessageBox::Show(ex->Message, "Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
-        //}
+        SelectedRepo^ selectedRepoForm = gcnew SelectedRepo(userManager, msclr::interop::marshal_as<std::string>(UserReposGridView->Rows[e->RowIndex]->Cells[0]->Value->ToString()));
+        try {
+            selectedRepoForm->ShowDialog();
+        }
+        catch (Exception^ ex) {
+            // Handle any exceptions that might occur
+            MessageBox::Show(ex->Message, "Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
+        }
     }
 
     private: System::Void Logoutbutton_Click(System::Object^ sender, System::EventArgs^ e) {

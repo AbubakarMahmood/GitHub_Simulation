@@ -74,6 +74,7 @@ namespace GithubSimulation {
 			{
 				delete components;
 			}
+			delete selectedRepoName;
 		}
 
 	private:
@@ -125,7 +126,7 @@ namespace GithubSimulation {
 			this->newFileNametextBox->Size = System::Drawing::Size(193, 22);
 			this->newFileNametextBox->TabIndex = 1;
 			this->newFileNametextBox->TabStop = false;
-			this->newFileNametextBox->Text = L"name you new file ";
+			this->newFileNametextBox->Text = L"Name your new file";
 			// 
 			// fileAddbutton
 			// 

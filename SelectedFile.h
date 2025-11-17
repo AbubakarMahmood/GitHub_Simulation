@@ -82,6 +82,8 @@ namespace GithubSimulation {
             {
                 delete components;
             }
+            delete selectedFileName;
+            delete selectedRepoName;
         }
     private:
         /// <summary>
@@ -162,7 +164,7 @@ namespace GithubSimulation {
                 this->newCommittextBox->Size = System::Drawing::Size(234, 22);
                 this->newCommittextBox->TabIndex = 4;
                 this->newCommittextBox->TabStop = false;
-                this->newCommittextBox->Text = L"enter your new commit";
+                this->newCommittextBox->Text = L"Enter your new commit";
                 // 
                 // SelectedFile
                 // 

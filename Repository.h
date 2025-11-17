@@ -23,7 +23,18 @@ class RepositoryManager
 private:
 	Repository* root;
 	Repository* current;
-	
+
+	// Helper function to recursively delete all nodes in the tree
+	void deleteTree(Repository* node)
+	{
+		if (node != nullptr)
+		{
+			deleteTree(node->left);
+			deleteTree(node->right);
+			delete node;
+		}
+	}
+
 public:
 
 	RepositoryManager()
@@ -33,7 +44,7 @@ public:
 	}
 	~RepositoryManager()
 	{
-
+		deleteTree(root);
 	}
 
 	Repository* getRoot() const
